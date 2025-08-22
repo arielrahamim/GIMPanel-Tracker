@@ -151,4 +151,24 @@ public interface GIMPanelConfig extends Config
     {
         return 30;
     }
+
+    @ConfigItem(
+        keyName = "enableStashTracking",
+        name = "Track STASH Units",
+        description = "Enable tracking of STASH unit deposits and withdrawals"
+    )
+    default boolean enableStashTracking()
+    {
+        return true;
+    }
+
+    @ConfigItem(
+        keyName = "enableGroupStorageTracking",
+        name = "Track Group Storage",
+        description = "Enable tracking of Group Ironman shared storage"
+    )
+    default boolean enableGroupStorageTracking()
+    {
+        return true;
+    }
 }

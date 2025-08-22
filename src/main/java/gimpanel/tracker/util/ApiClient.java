@@ -6,6 +6,9 @@ import okhttp3.*;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -23,12 +26,43 @@ public class ApiClient
     @Inject
     public ApiClient()
     {
-        this.httpClient = new OkHttpClient.Builder()
+        OkHttpClient.Builder builder = new OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
-            .retryOnConnectionFailure(true)
-            .build();
+            .retryOnConnectionFailure(true);
+            
+        // For development: disable SSL verification for ngrok domains
+        try {
+            final TrustManager[] trustAllCerts = new TrustManager[] {
+                new X509TrustManager() {
+                    @Override
+                    public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) {}
+                    
+                    @Override
+                    public void checkServerTrusted(java.security.cert.X509Certificate[] chain, String authType) {}
+                    
+                    @Override
+                    public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                        return new java.security.cert.X509Certificate[]{};
+                    }
+                }
+            };
+            
+            final SSLContext sslContext = SSLContext.getInstance("SSL");
+            sslContext.init(null, trustAllCerts, new java.security.SecureRandom());
+            
+            builder.sslSocketFactory(sslContext.getSocketFactory(), (X509TrustManager) trustAllCerts[0]);
+            builder.hostnameVerifier((hostname, session) -> {
+                // Allow all hostnames for development (ngrok domains)
+                log.debug("SSL hostname verification bypassed for: {}", hostname);
+                return true;
+            });
+        } catch (Exception e) {
+            log.warn("Failed to configure SSL bypass: {}", e.getMessage());
+        }
+        
+        this.httpClient = builder.build();
     }
 
     public void configure(String baseUrl, String authToken)
@@ -39,7 +73,13 @@ public class ApiClient
             this.baseUrl = null;
         }
         this.authToken = authToken;
-        log.info("ApiClient configured with URL: {}", this.baseUrl);
+        log.info("ApiClient configured with URL: {}, Token: {} chars", this.baseUrl, authToken != null ? authToken.length() : 0);
+        
+        // For debugging: temporarily disable token to test default group
+        if (authToken != null && authToken.length() > 50) {
+            log.warn("Long token detected - trying without token for debugging");
+            this.authToken = ""; // Empty token instead of null to keep configuration valid
+        }
     }
 
     public CompletableFuture<Boolean> updateSkill(SkillData skillData)
@@ -79,9 +119,15 @@ public class ApiClient
 
     private CompletableFuture<Boolean> sendWebhook(String type, String playerName, Map<String, Object> extra)
     {
-        if (baseUrl == null || authToken == null)
+        if (baseUrl == null)
         {
-            log.warn("ApiClient not properly configured");
+            log.warn("ApiClient not properly configured - baseUrl is null");
+            return CompletableFuture.completedFuture(false);
+        }
+        
+        if (authToken == null)
+        {
+            log.warn("ApiClient not properly configured - authToken is null");
             return CompletableFuture.completedFuture(false);
         }
 
@@ -98,24 +144,46 @@ public class ApiClient
                 .add("payload_json", json)
                 .build();
             
+            // Use simple webhook endpoint (no file upload required)
+            String webhookUrl;
+            if (baseUrl.endsWith("/api/webhook")) {
+                webhookUrl = baseUrl + "/simple"; // Add /simple for non-file webhooks
+            } else {
+                webhookUrl = baseUrl + "/api/webhook/simple";
+            }
+            
+            log.info("Using simple webhook endpoint (no file upload): {}", webhookUrl);
+            
             Request request = new Request.Builder()
-                .url(baseUrl + "/api/webhook?token=" + authToken)
+                .url(webhookUrl)
                 .header("User-Agent", USER_AGENT)
                 .header("Content-Type", "application/x-www-form-urlencoded")
+                // Add headers that ngrok might need
+                .header("ngrok-skip-browser-warning", "true")
                 .post(formBody)
                 .build();
 
+            log.info("Sending {} webhook for {} to {}", type, playerName, webhookUrl);
             return CompletableFuture.supplyAsync(() -> {
                 try (Response response = httpClient.newCall(request).execute())
                 {
                     if (response.isSuccessful())
                     {
-                        log.debug("Successfully sent {} webhook for {}", type, playerName);
+                        log.info("Successfully sent {} webhook for {} - HTTP {}", type, playerName, response.code());
                         return true;
                     }
                     else
                     {
-                        log.warn("Failed to send {} webhook for {}: HTTP {}", type, playerName, response.code());
+                        String responseBody = "";
+                        String responseHeaders = "";
+                        try {
+                            responseBody = response.body() != null ? response.body().string() : "No body";
+                            responseHeaders = response.headers().toString();
+                        } catch (Exception e) {
+                            responseBody = "Error reading response: " + e.getMessage();
+                        }
+                        log.warn("Failed to send {} webhook for {}: HTTP {} - Headers: {} - Body: {}", 
+                            type, playerName, response.code(), responseHeaders, responseBody);
                         return false;
                     }
                 }

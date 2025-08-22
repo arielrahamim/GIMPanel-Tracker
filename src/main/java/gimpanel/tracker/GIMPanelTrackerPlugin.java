@@ -53,6 +53,12 @@ public class GIMPanelTrackerPlugin extends Plugin
     @Inject
     private InventoryCollector inventoryCollector;
 
+    @Inject
+    private StashCollector stashCollector;
+
+    @Inject
+    private GroupStorageCollector groupStorageCollector;
+
     @Override
     protected void startUp() throws Exception
     {
@@ -83,9 +89,12 @@ public class GIMPanelTrackerPlugin extends Plugin
     @Subscribe
     public void onStatChanged(StatChanged event)
     {
-        if (!config.enableSkillTracking()) return;
+        if (!config.enableSkillTracking()) {
+            log.debug("StatChanged skipped - skill tracking disabled");
+            return;
+        }
         
-        log.debug("StatChanged event: {} {} -> {}", event.getSkill(), event.getXp(), event.getLevel());
+        log.info("StatChanged event: {} XP: {} Level: {}", event.getSkill(), event.getXp(), event.getLevel());
         skillCollector.onStatChanged(event);
     }
 
@@ -101,17 +110,16 @@ public class GIMPanelTrackerPlugin extends Plugin
     @Subscribe
     public void onGameTick(GameTick event)
     {
-        log.debug("GameTick event");
-        
         // OPTIMIZATION: Only process if player is logged in
         if (client.getGameState() != GameState.LOGGED_IN || client.getLocalPlayer() == null)
         {
             return;
         }
         
-        locationCollector.onGameTick(event);
-        resourceCollector.onGameTick(event); // NEW: Add resource tracking
-        stateTracker.onGameTick(event);
+        // Disable game tick logging but keep essential processing
+        // locationCollector.onGameTick(event);  // Commented out - not needed right now
+        // resourceCollector.onGameTick(event);  // Commented out - not needed right now
+        stateTracker.onGameTick(event);  // Keep for login/logout detection
     }
 
     @Subscribe
@@ -132,10 +140,15 @@ public class GIMPanelTrackerPlugin extends Plugin
     public void onItemContainerChanged(ItemContainerChanged event)
     {
         log.debug("ItemContainerChanged event: containerId={}", event.getContainerId());
+        
         if (config.shareInventory())
         {
             inventoryCollector.onItemContainerChanged(event);
         }
+        
+        // Always process stash and group storage (they have their own config checks)
+        stashCollector.onItemContainerChanged(event);
+        groupStorageCollector.onItemContainerChanged(event);
     }
 
     @Provides

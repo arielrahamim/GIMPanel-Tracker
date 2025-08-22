@@ -95,28 +95,18 @@ public class SkillCollector
         skillData.setXpGained(currentXp - prevXp);
         skillData.setLevelsGained(currentLevel - prevLevel);
 
-        // Only send notifications for actual level ups, not XP gains
+        // Send updates immediately - no batching
         if (skillData.getLevelsGained() > 0)
         {
-            log.debug("Level up detected: {} gained {} levels in {} (XP gained: {})", 
-                playerName, skillData.getLevelsGained(), skill.getName(), skillData.getXpGained());
-            
+            log.info("Level up! {} reached level {} in {} (+{} XP)", 
+                playerName, skillData.getLevel(), skillData.getSkillName(), skillData.getXpGained());
             dataManager.queueSkillUpdate(skillData);
-            
-            log.info("Level up! {} reached level {} in {}", 
-                playerName, currentLevel, skill.getName());
         }
         else if (skillData.getXpGained() > 0)
         {
-            // Log XP gains but don't send notifications
-            log.debug("XP gained: {} gained {} XP in {} (no level up)", 
-                playerName, skillData.getXpGained(), skill.getName());
-            
-            // Optionally send XP notifications for significant gains (e.g., 1000+ XP)
-            // Uncomment the following lines if you want XP notifications
-            // if (skillData.getXpGained() >= 1000) {
-            //     dataManager.queueXpUpdate(skillData);
-            // }
+            log.info("XP gained: {} +{} XP in {}", 
+                playerName, skillData.getXpGained(), skillData.getSkillName());
+            dataManager.queueXpUpdate(skillData);
         }
 
         previousLevels.put(skill, currentLevel);

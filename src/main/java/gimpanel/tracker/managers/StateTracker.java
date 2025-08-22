@@ -1,6 +1,8 @@
 package gimpanel.tracker.managers;
 
 import gimpanel.tracker.collectors.QuestCollector;
+import gimpanel.tracker.collectors.StashCollector;
+import gimpanel.tracker.collectors.GroupStorageCollector;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
@@ -17,6 +19,8 @@ public class StateTracker
 {
     private final Client client;
     private final QuestCollector questCollector;
+    private final StashCollector stashCollector;
+    private final GroupStorageCollector groupStorageCollector;
     
     private final AtomicBoolean isInitialized = new AtomicBoolean(false);
     private GameState previousGameState;
@@ -25,10 +29,12 @@ public class StateTracker
     private static final int INITIALIZATION_DELAY_TICKS = 10; // Wait 10 ticks after login before full initialization
 
     @Inject
-    public StateTracker(Client client, QuestCollector questCollector)
+    public StateTracker(Client client, QuestCollector questCollector, StashCollector stashCollector, GroupStorageCollector groupStorageCollector)
     {
         this.client = client;
         this.questCollector = questCollector;
+        this.stashCollector = stashCollector;
+        this.groupStorageCollector = groupStorageCollector;
     }
 
     public void initialize()
@@ -117,6 +123,25 @@ public class StateTracker
     {
         if (hasLoggedIn)
         {
+            if (client.getLocalPlayer() != null)
+            {
+                String playerName = client.getLocalPlayer().getName();
+                if (playerName != null)
+                {
+                    try
+                    {
+                        // Sync storage before logout (no need to flush - updates should be sent immediately)
+                        log.info("Syncing storage before logout for {}", playerName);
+                        stashCollector.syncAllStashUnits("logout");
+                        groupStorageCollector.syncGroupStorage("logout");
+                    }
+                    catch (Exception e)
+                    {
+                        log.error("Error syncing storage before logout: {}", e.getMessage());
+                    }
+                }
+            }
+            
             log.info("Player logged out");
             hasLoggedIn = false;
             ticksSinceLogin = 0;
@@ -142,6 +167,10 @@ public class StateTracker
         {
             // Refresh quest states after login to ensure we have current data
             questCollector.refreshAllQuests();
+            
+            // Sync STASH units and group storage after login
+            stashCollector.syncAllStashUnits("login");
+            groupStorageCollector.syncGroupStorage("login");
             
             log.info("Post-login initialization complete for {}", playerName);
         }

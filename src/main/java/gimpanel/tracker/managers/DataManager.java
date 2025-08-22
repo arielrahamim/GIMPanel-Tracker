@@ -80,7 +80,13 @@ public class DataManager
         
         // OPTIMIZATION: Use more frequent updates for real-time data
         startPeriodicSync();
-        startHeartbeat();
+        
+        // Check if heartbeat is enabled in config
+        if (config.enableHeartbeat()) {
+            startHeartbeat();
+        } else {
+            log.info("Heartbeat disabled in configuration");
+        }
         
         log.info("DataManager initialized successfully");
     }
@@ -449,28 +455,42 @@ public class DataManager
             return;
         }
         
+        log.info("Starting heartbeat task - first run in 5 seconds, then every 5 seconds");
+        
+        // Test scheduler immediately 
+        scheduler.submit(() -> {
+            log.info("Scheduler test: immediate task executed successfully");
+        });
+        
         heartbeatTask = scheduler.scheduleAtFixedRate(() -> {
             try
             {
+                log.info("Heartbeat task executing...");
                 if (client.getLocalPlayer() == null)
                 {
+                    log.debug("Heartbeat skipped - local player is null");
                     return;
                 }
 
                 String playerName = client.getLocalPlayer().getName();
                 if (playerName != null)
                 {
+                    log.info("Sending heartbeat for player: {}", playerName);
                     apiClient.heartbeat(playerName).exceptionally(throwable -> {
-                        log.debug("Heartbeat failed: {}", throwable.getMessage());
+                        log.warn("Heartbeat failed for {}: {}", playerName, throwable.getMessage());
                         return false;
                     });
+                }
+                else
+                {
+                    log.debug("Heartbeat skipped - player name is null");
                 }
             }
             catch (Exception e)
             {
                 log.error("Error during heartbeat: {}", e.getMessage());
             }
-        }, 30, 30, TimeUnit.SECONDS); // Heartbeat every 30 seconds
+        }, 5, 5, TimeUnit.SECONDS); // Initial delay 5 seconds, then every 5 seconds
     }
 
     private PlayerData createCurrentPlayerData()
