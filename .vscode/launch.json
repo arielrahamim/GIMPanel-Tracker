@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Launch GIMPanel Plugin Test",
+            "request": "launch",
+            "mainClass": "gimpanel.tracker.GIMPanelTrackerPluginTest",
+            "projectName": "GIMPanel-Tracker",
+            "vmArgs": "-ea",
+            "console": "internalConsole",
+            "stopOnEntry": false,
+            "internalConsoleOptions": "openOnSessionStart"
+        },
+        {
+            "type": "java",
+            "name": "Test GIMPanel Plugin (Headless)",
+            "request": "launch",
+            "mainClass": "gimpanel.tracker.GIMPanelTrackerPluginTest",
+            "projectName": "GIMPanel-Tracker",
+            "vmArgs": "-ea",
+            "console": "internalConsole",
+            "stopOnEntry": false,
+            "internalConsoleOptions": "openOnSessionStart"
+        }
+    ]
+}

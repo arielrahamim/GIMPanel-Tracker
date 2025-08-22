@@ -1,0 +1,11 @@
+{
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.compile.nullAnalysis.mode": "automatic",
+    "java.debug.settings.onBuildFailureProceed": true,
+    "java.sources.organizeImports.threshold": 10,
+    "java.sources.organizeImports.staticThreshold": 10,
+    "files.exclude": {
+        "**/build": true,
+        "**/.gradle": true
+    }
+}

@@ -1,13 +1,13 @@
-package com.example;
+package gimpanel.tracker;
 
 import net.runelite.client.RuneLite;
 import net.runelite.client.externalplugins.ExternalPluginManager;
 
-public class ExamplePluginTest
+public class GIMPanelTrackerPluginTest
 {
 	public static void main(String[] args) throws Exception
 	{
-		ExternalPluginManager.loadBuiltin(ExamplePlugin.class);
+		ExternalPluginManager.loadBuiltin(GIMPanelTrackerPlugin.class);
 		RuneLite.main(args);
 	}
 }
