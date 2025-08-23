@@ -144,15 +144,15 @@ public class ApiClient
                 .add("payload_json", json)
                 .build();
             
-            // Use simple webhook endpoint (no file upload required)
+            // Use consolidated webhook endpoint (handles both with and without file upload)
             String webhookUrl;
             if (baseUrl.endsWith("/api/webhook")) {
-                webhookUrl = baseUrl + "/simple"; // Add /simple for non-file webhooks
+                webhookUrl = baseUrl; // Use main endpoint
             } else {
-                webhookUrl = baseUrl + "/api/webhook/simple";
+                webhookUrl = baseUrl + "/api/webhook";
             }
             
-            log.info("Using simple webhook endpoint (no file upload): {}", webhookUrl);
+            log.info("Using consolidated webhook endpoint: {}", webhookUrl);
             
             Request request = new Request.Builder()
                 .url(webhookUrl)
