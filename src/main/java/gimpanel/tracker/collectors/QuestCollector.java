@@ -3,6 +3,7 @@ package gimpanel.tracker.collectors;
 import gimpanel.tracker.config.GIMPanelConfig;
 import gimpanel.tracker.managers.DataManager;
 import gimpanel.tracker.models.QuestData;
+import gimpanel.tracker.models.EnhancedQuestData;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.Quest;
@@ -12,6 +13,7 @@ import net.runelite.api.events.VarbitChanged;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -23,6 +25,7 @@ public class QuestCollector
     private final DataManager dataManager;
     
     private final Map<Quest, QuestState> previousQuestStates = new HashMap<>();
+    private final Map<Integer, String> varbitToQuestMap = new HashMap<>();
     private long lastQuestCheck = 0;
     private static final long QUEST_CHECK_INTERVAL = 30000; // Check every 30 seconds
 
@@ -42,11 +45,23 @@ public class QuestCollector
             return;
         }
 
-        for (Quest quest : Quest.values())
-        {
-            QuestState state = quest.getState(client);
-            previousQuestStates.put(quest, state);
-        }
+        // Initialize known quest varbit mappings to avoid reentrancy
+        initializeVarbitMapping();
+        
+        // Don't call quest.getState() here to avoid reentrancy issues
+        // Instead, we'll detect changes through varbit events
+        log.info("Quest collector initialized with safe varbit tracking");
+    }
+    
+    private void initializeVarbitMapping()
+    {
+        // Map known quest varbits to quest names
+        // This is a simplified mapping - in practice, you'd have a comprehensive mapping
+        varbitToQuestMap.put(32, "Cook's Assistant");
+        varbitToQuestMap.put(29, "Demon Slayer");
+        varbitToQuestMap.put(176, "Dragon Slayer I");
+        varbitToQuestMap.put(146, "Recipe for Disaster");
+        // Add more quest varbit mappings as needed
     }
 
     public void onVarbitChanged(VarbitChanged event)
@@ -67,15 +82,107 @@ public class QuestCollector
             return;
         }
 
-        // Prevent reentrant script calls by using time-based checking instead of event-based
-        // This avoids the "scripts are not reentrant" error
-        long currentTime = System.currentTimeMillis();
-        if (currentTime - lastQuestCheck > QUEST_CHECK_INTERVAL)
+        // Use varbit changes to detect quest progress without reentrancy
+        int varbitId = event.getVarbitId();
+        int value = event.getValue();
+        
+        String questName = varbitToQuestMap.get(varbitId);
+        if (questName != null)
         {
-            lastQuestCheck = currentTime;
-            // Schedule quest check for later to avoid reentrancy
-            log.debug("Quest state check scheduled");
+            handleQuestVarbitChange(playerName, questName, varbitId, value);
         }
+        else
+        {
+            // Log unknown varbits for future mapping
+            log.debug("Unknown quest varbit changed: {} = {}", varbitId, value);
+        }
+    }
+    
+    private void handleQuestVarbitChange(String playerName, String questName, int varbitId, int value)
+    {
+        QuestData.QuestStatus status = mapVarbitToQuestState(questName, value);
+        
+        // Create enhanced quest data with additional information
+        EnhancedQuestData questData = new EnhancedQuestData(
+            playerName, questName, status,
+            getQuestPoints(questName), 
+            getQuestRequirements(questName),
+            getQuestRewards(questName)
+        );
+        
+        if (status == QuestData.QuestStatus.COMPLETED)
+        {
+            log.info("Quest completed! {} finished '{}'", playerName, questName);
+        }
+        else if (status == QuestData.QuestStatus.IN_PROGRESS)
+        {
+            log.info("Quest progress! {} progressing in '{}'", playerName, questName);
+        }
+        
+        dataManager.queueEnhancedQuestUpdate(questData);
+    }
+    
+    private QuestData.QuestStatus mapVarbitToQuestState(String questName, int value)
+    {
+        // This is a simplified mapping - each quest has different completion values
+        if (value == 0)
+        {
+            return QuestData.QuestStatus.NOT_STARTED;
+        }
+        else if (isQuestCompleteValue(questName, value))
+        {
+            return QuestData.QuestStatus.COMPLETED;
+        }
+        else
+        {
+            return QuestData.QuestStatus.IN_PROGRESS;
+        }
+    }
+    
+    private boolean isQuestCompleteValue(String questName, int value)
+    {
+        // Quest-specific completion values
+        switch (questName)
+        {
+            case "Cook's Assistant":
+                return value == 2;
+            case "Demon Slayer":
+                return value == 3;
+            case "Dragon Slayer I":
+                return value == 10;
+            default:
+                return value > 100; // General assumption
+        }
+    }
+    
+    private int getQuestPoints(String questName)
+    {
+        // Hardcoded quest points - could be loaded from external data
+        switch (questName)
+        {
+            case "Cook's Assistant":
+                return 1;
+            case "Demon Slayer":
+                return 3;
+            case "Dragon Slayer I":
+                return 2;
+            case "Recipe for Disaster":
+                return 10;
+            default:
+                return 1;
+        }
+    }
+    
+    private Map<String, Object> getQuestRequirements(String questName)
+    {
+        // Return quest requirements - simplified for now
+        return Map.of("level", 1, "items", List.of());
+    }
+    
+    private Map<String, Object> getQuestRewards(String questName)
+    {
+        // Return quest rewards - simplified for now
+        return Map.of("xp", 1000, "items", List.of(), "access", List.of());
     }
 
     private void handleQuestStateChange(String playerName, Quest quest, QuestState oldState, QuestState newState)

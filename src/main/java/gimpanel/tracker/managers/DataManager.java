@@ -28,10 +28,17 @@ public class DataManager
     
     private final BlockingQueue<SkillData> skillQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<SkillData> xpQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<gimpanel.tracker.models.EnhancedSkillData> enhancedSkillQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<gimpanel.tracker.models.EnhancedSkillData> enhancedXpQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<DropData> dropQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<ActivityData> activityQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<QuestData> questQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<gimpanel.tracker.models.EnhancedQuestData> enhancedQuestQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<InventoryCollector.InventoryData> inventoryQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<gimpanel.tracker.models.EnhancedInventoryData> enhancedInventoryQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<gimpanel.tracker.models.AchievementDiaryData> achievementDiaryQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<gimpanel.tracker.models.CollectionLogData> collectionLogQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<gimpanel.tracker.models.CombatAchievementData> combatAchievementQueue = new LinkedBlockingQueue<>();
     
     private volatile ScheduledExecutorService scheduler;
     private final AtomicBoolean isRunning = new AtomicBoolean(false);
@@ -73,10 +80,17 @@ public class DataManager
         // Start background workers
         startSkillProcessor();
         startXpProcessor();
+        startEnhancedSkillProcessor();
+        startEnhancedXpProcessor();
         startDropProcessor();
         startActivityProcessor();
         startQuestProcessor();
+        startEnhancedQuestProcessor();
         startInventoryProcessor();
+        startEnhancedInventoryProcessor();
+        startAchievementDiaryProcessor();
+        startCollectionLogProcessor();
+        startCombatAchievementProcessor();
         
         // OPTIMIZATION: Use more frequent updates for real-time data
         startPeriodicSync();
@@ -186,6 +200,76 @@ public class DataManager
         }
         
         inventoryQueue.offer(inventoryData);
+    }
+    
+    public void queueEnhancedSkillUpdate(gimpanel.tracker.models.EnhancedSkillData skillData)
+    {
+        if (!isRunning.get())
+        {
+            return;
+        }
+        
+        enhancedSkillQueue.offer(skillData);
+    }
+    
+    public void queueEnhancedXpUpdate(gimpanel.tracker.models.EnhancedSkillData skillData)
+    {
+        if (!isRunning.get())
+        {
+            return;
+        }
+        
+        enhancedXpQueue.offer(skillData);
+    }
+    
+    public void queueEnhancedQuestUpdate(gimpanel.tracker.models.EnhancedQuestData questData)
+    {
+        if (!isRunning.get())
+        {
+            return;
+        }
+        
+        enhancedQuestQueue.offer(questData);
+    }
+    
+    public void queueEnhancedInventoryUpdate(gimpanel.tracker.models.EnhancedInventoryData inventoryData)
+    {
+        if (!isRunning.get())
+        {
+            return;
+        }
+        
+        enhancedInventoryQueue.offer(inventoryData);
+    }
+    
+    public void queueAchievementDiaryUpdate(gimpanel.tracker.models.AchievementDiaryData diaryData)
+    {
+        if (!isRunning.get())
+        {
+            return;
+        }
+        
+        achievementDiaryQueue.offer(diaryData);
+    }
+    
+    public void queueCollectionLogUpdate(gimpanel.tracker.models.CollectionLogData logData)
+    {
+        if (!isRunning.get())
+        {
+            return;
+        }
+        
+        collectionLogQueue.offer(logData);
+    }
+    
+    public void queueCombatAchievementUpdate(gimpanel.tracker.models.CombatAchievementData caData)
+    {
+        if (!isRunning.get())
+        {
+            return;
+        }
+        
+        combatAchievementQueue.offer(caData);
     }
 
     private void startSkillProcessor()
@@ -394,6 +478,76 @@ public class DataManager
                 catch (Exception e)
                 {
                     log.error("Error processing inventory update: {}", e.getMessage());
+                }
+            }
+        });
+    }
+    
+    private void startEnhancedSkillProcessor()
+    {
+        if (scheduler == null || scheduler.isShutdown())
+        {
+            log.warn("Cannot start enhanced skill processor - scheduler is not available");
+            return;
+        }
+        
+        scheduler.submit(() -> {
+            while (isRunning.get())
+            {
+                try
+                {
+                    gimpanel.tracker.models.EnhancedSkillData skillData = enhancedSkillQueue.poll(1, TimeUnit.SECONDS);
+                    if (skillData != null)
+                    {
+                        apiClient.updateEnhancedSkill(skillData).exceptionally(throwable -> {
+                            log.warn("Failed to send enhanced skill update: {}", throwable.getMessage());
+                            return false;
+                        });
+                    }
+                }
+                catch (InterruptedException e)
+                {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+                catch (Exception e)
+                {
+                    log.error("Error processing enhanced skill update: {}", e.getMessage());
+                }
+            }
+        });
+    }
+    
+    private void startEnhancedXpProcessor()
+    {
+        if (scheduler == null || scheduler.isShutdown())
+        {
+            log.warn("Cannot start enhanced XP processor - scheduler is not available");
+            return;
+        }
+        
+        scheduler.submit(() -> {
+            while (isRunning.get())
+            {
+                try
+                {
+                    gimpanel.tracker.models.EnhancedSkillData skillData = enhancedXpQueue.poll(1, TimeUnit.SECONDS);
+                    if (skillData != null)
+                    {
+                        apiClient.updateEnhancedXp(skillData).exceptionally(throwable -> {
+                            log.warn("Failed to send enhanced XP update: {}", throwable.getMessage());
+                            return false;
+                        });
+                    }
+                }
+                catch (InterruptedException e)
+                {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+                catch (Exception e)
+                {
+                    log.error("Error processing enhanced XP update: {}", e.getMessage());
                 }
             }
         });
@@ -616,5 +770,180 @@ public class DataManager
             case 12954: return "Al Kharid";
             default: return "Region " + regionId;
         }
+    }
+    
+    private void startEnhancedQuestProcessor()
+    {
+        if (scheduler == null || scheduler.isShutdown())
+        {
+            log.warn("Cannot start enhanced quest processor - scheduler is not available");
+            return;
+        }
+        
+        scheduler.submit(() -> {
+            while (isRunning.get())
+            {
+                try
+                {
+                    gimpanel.tracker.models.EnhancedQuestData questData = enhancedQuestQueue.poll(1, TimeUnit.SECONDS);
+                    if (questData != null)
+                    {
+                        apiClient.updateEnhancedQuest(questData).exceptionally(throwable -> {
+                            log.warn("Failed to send enhanced quest update: {}", throwable.getMessage());
+                            return false;
+                        });
+                    }
+                }
+                catch (InterruptedException e)
+                {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+                catch (Exception e)
+                {
+                    log.error("Error processing enhanced quest update: {}", e.getMessage());
+                }
+            }
+        });
+    }
+    
+    private void startEnhancedInventoryProcessor()
+    {
+        if (scheduler == null || scheduler.isShutdown())
+        {
+            log.warn("Cannot start enhanced inventory processor - scheduler is not available");
+            return;
+        }
+        
+        scheduler.submit(() -> {
+            while (isRunning.get())
+            {
+                try
+                {
+                    gimpanel.tracker.models.EnhancedInventoryData inventoryData = enhancedInventoryQueue.poll(1, TimeUnit.SECONDS);
+                    if (inventoryData != null)
+                    {
+                        apiClient.updateEnhancedInventory(inventoryData).exceptionally(throwable -> {
+                            log.warn("Failed to send enhanced inventory update: {}", throwable.getMessage());
+                            return false;
+                        });
+                    }
+                }
+                catch (InterruptedException e)
+                {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+                catch (Exception e)
+                {
+                    log.error("Error processing enhanced inventory update: {}", e.getMessage());
+                }
+            }
+        });
+    }
+    
+    private void startAchievementDiaryProcessor()
+    {
+        if (scheduler == null || scheduler.isShutdown())
+        {
+            log.warn("Cannot start achievement diary processor - scheduler is not available");
+            return;
+        }
+        
+        scheduler.submit(() -> {
+            while (isRunning.get())
+            {
+                try
+                {
+                    gimpanel.tracker.models.AchievementDiaryData diaryData = achievementDiaryQueue.poll(1, TimeUnit.SECONDS);
+                    if (diaryData != null)
+                    {
+                        apiClient.updateAchievementDiary(diaryData).exceptionally(throwable -> {
+                            log.warn("Failed to send achievement diary update: {}", throwable.getMessage());
+                            return false;
+                        });
+                    }
+                }
+                catch (InterruptedException e)
+                {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+                catch (Exception e)
+                {
+                    log.error("Error processing achievement diary update: {}", e.getMessage());
+                }
+            }
+        });
+    }
+    
+    private void startCollectionLogProcessor()
+    {
+        if (scheduler == null || scheduler.isShutdown())
+        {
+            log.warn("Cannot start collection log processor - scheduler is not available");
+            return;
+        }
+        
+        scheduler.submit(() -> {
+            while (isRunning.get())
+            {
+                try
+                {
+                    gimpanel.tracker.models.CollectionLogData logData = collectionLogQueue.poll(1, TimeUnit.SECONDS);
+                    if (logData != null)
+                    {
+                        apiClient.updateCollectionLog(logData).exceptionally(throwable -> {
+                            log.warn("Failed to send collection log update: {}", throwable.getMessage());
+                            return false;
+                        });
+                    }
+                }
+                catch (InterruptedException e)
+                {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+                catch (Exception e)
+                {
+                    log.error("Error processing collection log update: {}", e.getMessage());
+                }
+            }
+        });
+    }
+    
+    private void startCombatAchievementProcessor()
+    {
+        if (scheduler == null || scheduler.isShutdown())
+        {
+            log.warn("Cannot start combat achievement processor - scheduler is not available");
+            return;
+        }
+        
+        scheduler.submit(() -> {
+            while (isRunning.get())
+            {
+                try
+                {
+                    gimpanel.tracker.models.CombatAchievementData caData = combatAchievementQueue.poll(1, TimeUnit.SECONDS);
+                    if (caData != null)
+                    {
+                        apiClient.updateCombatAchievement(caData).exceptionally(throwable -> {
+                            log.warn("Failed to send combat achievement update: {}", throwable.getMessage());
+                            return false;
+                        });
+                    }
+                }
+                catch (InterruptedException e)
+                {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+                catch (Exception e)
+                {
+                    log.error("Error processing combat achievement update: {}", e.getMessage());
+                }
+            }
+        });
     }
 }

@@ -114,9 +114,39 @@ public interface GIMPanelConfig extends Config
     @ConfigItem(
         keyName = "enableQuestTracking",
         name = "Track Quests",
-        description = "Enable quest and achievement tracking"
+        description = "Enable quest tracking"
     )
     default boolean enableQuestTracking()
+    {
+        return true;
+    }
+    
+    @ConfigItem(
+        keyName = "enableAchievementTracking",
+        name = "Track Achievement Diaries",
+        description = "Enable achievement diary tracking"
+    )
+    default boolean enableAchievementTracking()
+    {
+        return true;
+    }
+    
+    @ConfigItem(
+        keyName = "enableCollectionLogTracking",
+        name = "Track Collection Log",
+        description = "Enable collection log tracking"
+    )
+    default boolean enableCollectionLogTracking()
+    {
+        return true;
+    }
+    
+    @ConfigItem(
+        keyName = "enableCombatAchievementTracking",
+        name = "Track Combat Achievements",
+        description = "Enable combat achievement tracking"
+    )
+    default boolean enableCombatAchievementTracking()
     {
         return true;
     }

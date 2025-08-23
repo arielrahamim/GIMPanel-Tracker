@@ -58,6 +58,15 @@ public class GIMPanelTrackerPlugin extends Plugin
 
     @Inject
     private GroupStorageCollector groupStorageCollector;
+    
+    @Inject
+    private AchievementDiaryCollector achievementDiaryCollector;
+    
+    @Inject
+    private CollectionLogCollector collectionLogCollector;
+    
+    @Inject
+    private CombatAchievementCollector combatAchievementCollector;
 
     @Override
     protected void startUp() throws Exception
@@ -101,10 +110,22 @@ public class GIMPanelTrackerPlugin extends Plugin
     @Subscribe
     public void onChatMessage(ChatMessage event)
     {
-        if (!config.enableDropTracking()) return;
-        
         log.debug("ChatMessage event: {}", event.getMessage());
-        dropCollector.onChatMessage(event);
+        
+        if (config.enableDropTracking())
+        {
+            dropCollector.onChatMessage(event);
+        }
+        
+        if (config.enableCollectionLogTracking())
+        {
+            collectionLogCollector.onChatMessage(event);
+        }
+        
+        if (config.enableCombatAchievementTracking())
+        {
+            combatAchievementCollector.onChatMessage(event);
+        }
     }
 
     @Subscribe
@@ -125,9 +146,20 @@ public class GIMPanelTrackerPlugin extends Plugin
     @Subscribe
     public void onVarbitChanged(VarbitChanged event)
     {
-        if (!config.enableQuestTracking()) return;
+        if (config.enableQuestTracking())
+        {
+            questCollector.onVarbitChanged(event);
+        }
         
-        questCollector.onVarbitChanged(event);
+        if (config.enableAchievementTracking())
+        {
+            achievementDiaryCollector.onVarbitChanged(event);
+        }
+        
+        if (config.enableCombatAchievementTracking())
+        {
+            combatAchievementCollector.onVarbitChanged(event);
+        }
     }
 
     @Subscribe

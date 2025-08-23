@@ -91,6 +91,16 @@ public class ApiClient
     {
         return sendWebhook("XP_GAIN", skillData.getPlayerName(), createXpExtra(skillData));
     }
+    
+    public CompletableFuture<Boolean> updateEnhancedSkill(gimpanel.tracker.models.EnhancedSkillData skillData)
+    {
+        return sendWebhook("ENHANCED_LEVEL", skillData.getPlayerName(), createEnhancedSkillExtra(skillData));
+    }
+    
+    public CompletableFuture<Boolean> updateEnhancedXp(gimpanel.tracker.models.EnhancedSkillData skillData)
+    {
+        return sendWebhook("ENHANCED_XP_GAIN", skillData.getPlayerName(), createEnhancedXpExtra(skillData));
+    }
 
     public CompletableFuture<Boolean> updateDrop(DropData dropData)
     {
@@ -106,6 +116,11 @@ public class ApiClient
     {
         return sendWebhook("QUEST", questData.getPlayerName(), createQuestExtra(questData));
     }
+    
+    public CompletableFuture<Boolean> updateEnhancedQuest(gimpanel.tracker.models.EnhancedQuestData questData)
+    {
+        return sendWebhook("ENHANCED_QUEST", questData.getPlayerName(), createEnhancedQuestExtra(questData));
+    }
 
     public CompletableFuture<Boolean> syncPlayerData(PlayerData playerData)
     {
@@ -115,6 +130,26 @@ public class ApiClient
     public CompletableFuture<Boolean> heartbeat(String playerName)
     {
         return sendWebhook("HEARTBEAT", playerName, createHeartbeatExtra(playerName));
+    }
+    
+    public CompletableFuture<Boolean> updateEnhancedInventory(gimpanel.tracker.models.EnhancedInventoryData inventoryData)
+    {
+        return sendWebhook("ENHANCED_INVENTORY", inventoryData.getPlayerName(), createEnhancedInventoryExtra(inventoryData));
+    }
+    
+    public CompletableFuture<Boolean> updateAchievementDiary(gimpanel.tracker.models.AchievementDiaryData diaryData)
+    {
+        return sendWebhook("ACHIEVEMENT_DIARY", diaryData.getPlayerName(), createAchievementDiaryExtra(diaryData));
+    }
+    
+    public CompletableFuture<Boolean> updateCollectionLog(gimpanel.tracker.models.CollectionLogData logData)
+    {
+        return sendWebhook("COLLECTION_LOG", logData.getPlayerName(), createCollectionLogExtra(logData));
+    }
+    
+    public CompletableFuture<Boolean> updateCombatAchievement(gimpanel.tracker.models.CombatAchievementData caData)
+    {
+        return sendWebhook("COMBAT_ACHIEVEMENT", caData.getPlayerName(), createCombatAchievementExtra(caData));
     }
 
     private CompletableFuture<Boolean> sendWebhook(String type, String playerName, Map<String, Object> extra)
@@ -282,6 +317,130 @@ public class ApiClient
         return Map.of(
             "timestamp", System.currentTimeMillis(),
             "status", "online"
+        );
+    }
+    
+    private Map<String, Object> createEnhancedSkillExtra(gimpanel.tracker.models.EnhancedSkillData skillData)
+    {
+        return Map.of(
+            "skill", skillData.getSkillName(),
+            "level", skillData.getLevel(),
+            "xp", skillData.getXp(),
+            "xpGained", skillData.getXpGained(),
+            "totalLevel", skillData.getTotalLevel(),
+            "combatLevel", skillData.getCombatLevel(),
+            "xpPerHour", skillData.getXpPerHour(),
+            "efficiency", skillData.getEfficiency(),
+            "rank", skillData.getRank()
+        );
+    }
+    
+    private Map<String, Object> createEnhancedXpExtra(gimpanel.tracker.models.EnhancedSkillData skillData)
+    {
+        return Map.of(
+            "skill", skillData.getSkillName(),
+            "level", skillData.getLevel(),
+            "xp", skillData.getXp(),
+            "xpGained", skillData.getXpGained(),
+            "totalLevel", skillData.getTotalLevel(),
+            "combatLevel", skillData.getCombatLevel(),
+            "xpPerHour", skillData.getXpPerHour(),
+            "efficiency", skillData.getEfficiency(),
+            "timeSinceLastUpdate", skillData.getTimeSinceLastUpdate()
+        );
+    }
+    
+    private Map<String, Object> createEnhancedQuestExtra(gimpanel.tracker.models.EnhancedQuestData questData)
+    {
+        return Map.of(
+            "questName", questData.getQuestName(),
+            "status", questData.getStatus(),
+            "questPoints", questData.getQuestPoints(),
+            "progress", questData.getProgress(),
+            "requirements", questData.getRequirements() != null ? questData.getRequirements() : Map.of(),
+            "rewards", questData.getRewards() != null ? questData.getRewards() : Map.of(),
+            "difficulty", questData.getDifficulty() != null ? questData.getDifficulty() : "Unknown",
+            "series", questData.getSeries() != null ? questData.getSeries() : "None"
+        );
+    }
+    
+    private Map<String, Object> createEnhancedInventoryExtra(gimpanel.tracker.models.EnhancedInventoryData inventoryData)
+    {
+        return Map.of(
+            "containerName", inventoryData.getContainerName(),
+            "totalValue", inventoryData.getTotalValue(),
+            "totalItems", inventoryData.getTotalItems(),
+            "uniqueItems", inventoryData.getUniqueItems(),
+            "items", inventoryData.getItems().stream().map(item -> Map.of(
+                "itemId", item.getItemId(),
+                "itemName", item.getItemName(),
+                "quantity", item.getQuantity(),
+                "itemValue", item.getItemValue(),
+                "totalValue", item.getTotalValue(),
+                "category", item.getCategory(),
+                "noted", item.isNoted()
+            )).collect(java.util.stream.Collectors.toList()),
+            "categories", inventoryData.getCategories() != null ? 
+                inventoryData.getCategories().entrySet().stream().collect(
+                    java.util.stream.Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> Map.of(
+                            "category", entry.getValue().getCategory(),
+                            "count", entry.getValue().getCount(),
+                            "value", entry.getValue().getValue()
+                        )
+                    )
+                ) : Map.of(),
+            "valueRanges", inventoryData.getValueRanges() != null ?
+                inventoryData.getValueRanges().entrySet().stream().collect(
+                    java.util.stream.Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> Map.of(
+                            "range", entry.getValue().getRange(),
+                            "count", entry.getValue().getCount(),
+                            "value", entry.getValue().getValue()
+                        )
+                    )
+                ) : Map.of()
+        );
+    }
+    
+    private Map<String, Object> createAchievementDiaryExtra(gimpanel.tracker.models.AchievementDiaryData diaryData)
+    {
+        return Map.of(
+            "area", diaryData.getArea(),
+            "difficulty", diaryData.getDifficulty(),
+            "completed", diaryData.isCompleted(),
+            "completedTasks", diaryData.getCompletedTasks(),
+            "totalTasks", diaryData.getTotalTasks(),
+            "completionPercentage", diaryData.getCompletionPercentage(),
+            "rewards", diaryData.getRewards() != null ? diaryData.getRewards() : java.util.List.of(),
+            "taskProgress", diaryData.getTaskProgress() != null ? diaryData.getTaskProgress() : Map.of()
+        );
+    }
+    
+    private Map<String, Object> createCollectionLogExtra(gimpanel.tracker.models.CollectionLogData logData)
+    {
+        return Map.of(
+            "itemName", logData.getItemName(),
+            "category", logData.getCategory(),
+            "collectedItems", logData.getCollectedItems(),
+            "totalCollectionItems", logData.getTotalCollectionItems(),
+            "completionPercentage", logData.getCompletionPercentage(),
+            "categoryProgress", logData.getCategoryProgress() != null ? logData.getCategoryProgress() : Map.of()
+        );
+    }
+    
+    private Map<String, Object> createCombatAchievementExtra(gimpanel.tracker.models.CombatAchievementData caData)
+    {
+        return Map.of(
+            "achievementName", caData.getAchievementName(),
+            "tier", caData.getTier(),
+            "category", caData.getCategory(),
+            "completed", caData.isCompleted(),
+            "points", caData.getPoints(),
+            "description", caData.getDescription() != null ? caData.getDescription() : "",
+            "tierProgress", caData.getTierProgress() != null ? caData.getTierProgress() : Map.of()
         );
     }
 }

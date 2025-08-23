@@ -3,6 +3,7 @@ package gimpanel.tracker.collectors;
 import gimpanel.tracker.config.GIMPanelConfig;
 import gimpanel.tracker.managers.DataManager;
 import gimpanel.tracker.models.SkillData;
+import gimpanel.tracker.models.EnhancedSkillData;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.Skill;
@@ -23,6 +24,7 @@ public class SkillCollector
     
     private final Map<Skill, Integer> previousLevels = new HashMap<>();
     private final Map<Skill, Integer> previousXp = new HashMap<>();
+    private final Map<Skill, Long> lastSkillUpdate = new HashMap<>();
 
     @Inject
     public SkillCollector(Client client, GIMPanelConfig config, DataManager dataManager)
@@ -91,23 +93,45 @@ public class SkillCollector
             prevXp = currentXp;
         }
 
-        SkillData skillData = new SkillData(playerName, skill.getName(), currentLevel, currentXp);
+        // Enhanced skill data with additional metrics
+        int totalLevel = client.getTotalLevel();
+        int combatLevel = client.getLocalPlayer().getCombatLevel();
+        
+        // Calculate XP per hour
+        long currentTime = System.currentTimeMillis();
+        long lastUpdate = lastSkillUpdate.getOrDefault(skill, currentTime);
+        
+        EnhancedSkillData skillData = new EnhancedSkillData(
+            playerName, skill.getName(), currentLevel, currentXp,
+            totalLevel, combatLevel, 0.0, -1
+        );
+        
         skillData.setXpGained(currentXp - prevXp);
         skillData.setLevelsGained(currentLevel - prevLevel);
-
+        
+        // Update timing data for XP per hour calculation
+        if (lastUpdate != currentTime)
+        {
+            skillData.updateTimingData(lastUpdate, currentTime);
+        }
+        
         // Send updates immediately - no batching
         if (skillData.getLevelsGained() > 0)
         {
-            log.info("Level up! {} reached level {} in {} (+{} XP)", 
-                playerName, skillData.getLevel(), skillData.getSkillName(), skillData.getXpGained());
-            dataManager.queueSkillUpdate(skillData);
+            log.info("Level up! {} reached level {} in {} (+{} XP, {:.1f} XP/hr)", 
+                playerName, skillData.getLevel(), skillData.getSkillName(), 
+                skillData.getXpGained(), skillData.getXpPerHour());
+            dataManager.queueEnhancedSkillUpdate(skillData);
         }
         else if (skillData.getXpGained() > 0)
         {
-            log.info("XP gained: {} +{} XP in {}", 
-                playerName, skillData.getXpGained(), skillData.getSkillName());
-            dataManager.queueXpUpdate(skillData);
+            log.info("XP gained: {} +{} XP in {} ({:.1f} XP/hr)", 
+                playerName, skillData.getXpGained(), skillData.getSkillName(),
+                skillData.getXpPerHour());
+            dataManager.queueEnhancedXpUpdate(skillData);
         }
+        
+        lastSkillUpdate.put(skill, currentTime);
 
         previousLevels.put(skill, currentLevel);
         previousXp.put(skill, currentXp);
